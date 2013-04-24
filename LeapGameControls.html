@@ -1,0 +1,229 @@
+<html>
+  <head>
+    <title>Camera - Leap</title>
+    <style>
+      canvas { width: 100%; height: 100%; background-color: black; }
+    </style>
+    <script src="three.js"></script>
+    <script src="leap.js"></script>
+    <script src="Hand.js"></script>
+  </head>
+  <body>
+    <script>
+
+    var scene,renderer,camera,cube;
+    var debug_mode = true;
+    var spheres = {};
+
+
+
+    main();
+
+     function moveFinger(Finger, posX, posY, posZ, dirX, dirY, dirZ) {
+        Finger.style.webkitTransform = "translateX("+posX+"px) translateY("+posY+"px) translateZ("+posZ+"px) rotateX("+dirX+"deg) rotateY(0deg) rotateZ("+dirZ+"deg)";
+      }
+
+      function moveSphere(Sphere, posX, posY, posZ, rotX, rotY, rotZ) {
+        Sphere.style.webkitTransform = "translateX("+posX+"px) translateY("+posY+"px) translateZ("+posZ+"px) rotateX("+rotX+"deg) rotateY(0deg) rotateZ(0deg)";
+      }
+
+    function init()
+    {
+      //init camera, renderer and scene
+      scene = new THREE.Scene();
+      renderer = new THREE.WebGLRenderer();
+      renderer.setSize(window.innerWidth, window.innerHeight);
+      document.body.appendChild(renderer.domElement); 
+
+      camera = new THREE.PerspectiveCamera( 70, window.innerWidth / window.innerHeight, 1, 3000 );
+      initCamera();
+
+      //make cube
+      var geometry = new THREE.CubeGeometry( 20, 20, 20 );
+
+      for ( var i = 0; i < geometry.faces.length; i ++ ) {
+        geometry.faces[ i ].color.setHex( Math.random() * 0xffffff );
+      }
+      var material = new THREE.MeshBasicMaterial( { vertexColors: THREE.FaceColors } );
+
+      cube = new THREE.Mesh( geometry, material );
+
+      //add to scene
+      //scene.add(cube);
+      scene.add(plane());
+    }
+
+    function initCamera()
+    {
+      camera.position.x = 0;
+      camera.position.y = 150;
+      camera.position.z = 500;
+    }
+
+    function plane()
+    {
+      var planeGeo = new THREE.PlaneGeometry(200,200,1,1);
+      //var planeMat = new THREE.MeshLambertMaterial();
+      planeGeo.applyMatrix(new THREE.Matrix4().makeRotationX(-Math.PI / 2));
+      //planeGeo.applyMatrix(new THREE.Matrix4().makeTranslation(0, -10, 0));
+      var planeMat = new THREE.MeshBasicMaterial();
+
+      return new THREE.Mesh(planeGeo, planeMat);
+    }
+
+    var fingerIds = {};
+    var handIds = {};
+    var handObj = {};
+
+    var d;
+
+    function showHands(frame)
+    {
+        
+        if (frame.hands === undefined ) { 
+          var handsLength = 0 
+        } else {
+          var handsLength = frame.hands.length;
+        }
+
+        
+        for(id in handIds)
+        {
+          handIds[id] = false;
+        }
+
+        for (var handId = 0, handCount = handsLength; handId != handCount; handId++) 
+        {
+          var hand = frame.hands[handId];
+          d = frame.hands[handId];
+          var posX = (hand.palmPosition[0]*3);
+          var posY = (hand.palmPosition[2]*3)-200;
+          var posZ = (hand.palmPosition[1]*3)-400;
+          var rotX = (hand.rotation[1][2]*90);
+          var rotY = (hand.rotation[1][1]*90);
+          var rotZ = (hand.rotation[1][0]*90);
+          //console.log(hand.id);
+          
+
+          /*
+          if (!sphere) {
+                spheres[hand.id] = hand.id;
+          } else {
+
+              moveSphere(sphereDiv, posX, posY, posZ, rotX, rotY, rotZ);
+            
+          }
+          */
+          if(handIds[hand.id] == undefined)
+          {
+            handObj[hand.id] = new Hand();
+            if(posX > 0)
+            {
+              handObj[hand.id].setSide(1);
+            }
+            else
+            {
+              handObj[hand.id].setSide(0);
+            }
+            scene.add(handObj[hand.id].palm);
+            console.log("about to make a new hand cube id: " + hand.id);
+          }
+          handObj[hand.id].palm.position = new THREE.Vector3(posX,posZ,posY);
+
+          handObj[hand.id].updateFingers(frame.hands[handId].fingers);
+          //handObj[hand.id].fingers = frame.hands[handId].fingers;
+
+          handIds[hand.id] = true;
+        }
+        
+        //deleting
+        for (handId in handIds) {
+          //console.log("handId " + handId);
+          //console.log("true? :: " + handIds[handId]);
+          if (!handIds[handId]) {
+            console.log("deleting a hand cube id: " + handId);
+            handObj[handId].onRemove();
+            //scene.remove(handObj[handId].palm);
+            delete handIds[handId];
+          }
+        }
+        
+        /*
+        for (var pointableId = 0, pointableCount = frame.pointables.length; pointableId != pointableCount; pointableId++) {
+          var pointable = frame.pointables[pointableId];
+          var posX = (pointable.tipPosition[0]*3);
+          var posY = (pointable.tipPosition[2]*3)-200;
+          var posZ = (pointable.tipPosition[1]*3)-400;
+          var dirX = -(pointable.direction[1]*90);
+          var dirY = -(pointable.direction[2]*90);
+          var dirZ = (pointable.direction[0]*90);
+          var finger = fingers[pointable.id];
+          if (!finger) {
+                fingers[pointable.id] = pointable.id;
+          } else {
+            var fingerDiv =  document.getElementById(pointable.id);
+            if (typeof(fingerDiv) != 'undefined' && fingerDiv != null) {
+              moveFinger(fingerDiv, posX, posY, posZ, dirX, dirY, dirZ);
+            }
+          }
+          fingerIds[pointable.id] = true;
+        }
+        */
+    }
+
+      
+    function main()
+    {
+      init();
+
+    }
+      
+
+      
+      
+
+      
+     
+      var startX = camera.position.x;
+      var startY = camera.position.y;
+      var startZ = camera.position.z;
+      var state  = null;
+      var startFrame = null;
+
+      var debug;
+
+      Leap.loop(function(frame) {
+
+
+        if(debug_mode)
+        {
+          showHands(frame);
+        }
+
+
+        if (frame.valid) {
+          debug = frame;
+          if (state == null) {
+            if (frame.hands.length > 0 && frame.pointables.length <= 1) {
+              startFrame = frame;
+              startX = cube.position.x;
+              startY = cube.position.y;
+              startZ = cube.position.z;
+              state = 'moving';
+            }
+          } else if (state == 'moving') {
+            var t = startFrame.translation(frame);
+            cube.position.x = t[0] * 10 + startX;
+            cube.position.y = t[1] * 10 + startY;
+            cube.position.z = t[2] * 10 + startZ;
+            if (frame.hands.length == 1 || frame.pointables.legnth > 1) {
+              state = null;
+            }
+          }
+        }
+        renderer.render(scene, camera);
+      });
+    </script>
+    <div id="out"></div>
+  </body>
+</html>

@@ -22,11 +22,36 @@
     var handIds = {};
     var handObj = {};
 
-    var d;
     var d2;
+    var line;
 
+
+    //------------------------------------
+    var cameraRotationDegrees = 0;
+    var started = false;
+    var initialCameraPosition = 0;
+    var finalCameraPosition = 0;
 
     main();
+
+
+    function initBoxes(numBoxes)
+    {
+        geometry = new THREE.CubeGeometry(20,20,20);
+
+        for ( var i = 0; i < numBoxes; i ++ ) {
+
+          var material = new  THREE.MeshBasicMaterial({ color : new THREE.Color(0xFF0000) });
+          var mesh = new THREE.Mesh( geometry, material );
+          mesh.position.x = Math.floor( Math.random() * 20 - 10 ) * 20;
+          mesh.position.y = Math.floor( Math.random() * 20 ) * 20 + 10;
+          mesh.position.z = Math.floor( Math.random() * 20 - 10 ) * 20;
+          
+
+          
+          scene.add( mesh );
+        }
+    }
 
     function init()
     {
@@ -52,6 +77,18 @@
       //add to scene
       //scene.add(cube);
       scene.add(plane());
+      initBoxes(100);
+
+
+      var material = new THREE.LineBasicMaterial({
+        color: 0xFFFFFF
+    });
+      var geometry = new THREE.Geometry();
+      geometry.vertices.push(new THREE.Vector3(0, 100, 400));
+      geometry.vertices.push(new THREE.Vector3(0, 0, 0));
+      line = new THREE.Line(geometry, material);
+      scene.add(line);
+      line.geometry.verticesNeedUpdate = true;
     }
 
     function initCamera()
@@ -59,6 +96,14 @@
       camera.position.x = 0;
       camera.position.y = 150;
       camera.position.z = 500;
+    }
+
+    //-------------------------------------------------------------
+    //CAMERA STUFF
+    //-------------------------------------------------------------
+    function rotateCamera(degrees)
+    {
+      camera.rotation.y = degrees * Math.PI / 180;
     }
 
     function plane()
@@ -71,8 +116,6 @@
 
       return new THREE.Mesh(planeGeo, planeMat);
     }
-
-    
 
     function showHands(frame)
     {
@@ -110,7 +153,7 @@
           */
           if(handIds[hand.id] == undefined)
           {
-            handObj[hand.id] = new Hand();
+            handObj[hand.id] = new Hand(scene);
             if(posX > 0)
             {
               handObj[hand.id].setSide(1);
@@ -123,7 +166,7 @@
             console.log("about to make a new hand cube id: " + hand.id);
           }
           handObj[hand.id].palm.position = new THREE.Vector3(posX,posZ,posY);
-
+          handObj[hand.id].palmNormal = new THREE.Vector3(hand.palmNormal[0], hand.palmNormal[1], hand.palmNormal[2]);
           handObj[hand.id].updateFingers(frame.hands[handId].fingers);
           //handObj[hand.id].fingers = frame.hands[handId].fingers;
 
@@ -154,11 +197,20 @@
         {
           case "swipe" : 
 
-            console.log("something: did a swipe"); break;
+            
+            if(gesturesArray[gesture].speed > 600.0)
+            {
+            cameraRotationDegrees += (gesturesArray[gesture].position[0] - 
+                                      gesturesArray[gesture].startPosition[0]) / 40.0;
+            rotateCamera(cameraRotationDegrees);
+            d2 = gesturesArray[gesture];
+            //console.log(JSON.stringify(d2));
+            }
+            //console.log("something: did a swipe :: " + cameraRotationDegrees); break;
           case "circle" :
           if(side)
           {
-            d2 = gesturesArray[gesture];
+            
             console.log("right: did a circle");
           }
           else
@@ -185,6 +237,18 @@
           } break;
           default : console.log("new gesture" + gesturesArray[gesture].type); 
         }
+        break;
+      }
+    }
+
+    function rayCastPalm()
+    {
+      for(id in handObj)
+      {
+        //console.log(handObj[id]);
+        handObj[id].updateRay();
+        //line.geometry.verticesNeedUpdate = true;
+        //console.log(handObj[id].palmNormal);
       }
     }
 
@@ -204,21 +268,18 @@
       }
 
 
+
       if(debug_mode)
       {
         showHands(frame);
       }
-
+      rayCastPalm();
 
       if (frame.valid) {
         debug = frame;
         if (state == null) {
           if (frame.hands.length > 0 && frame.pointables.length <= 1) {
-            startFrame = frame;
-            startX = cube.position.x;
-            startY = cube.position.y;
-            startZ = cube.position.z;
-            state = 'moving';
+            
           }
         } else if (state == 'moving') {
           var t = startFrame.translation(frame);
@@ -232,11 +293,14 @@
       }
       renderer.render(scene, camera);
     });
-      
+
+    
+
+
+
     function main()
     {
       init();
-
     }
     </script>
     <div id="out"></div>

@@ -32,6 +32,10 @@
     var initialCameraPosition = 0;
     var finalCameraPosition = 0;
 
+    //------------------------------------
+
+    var collidables = [];
+
     main();
 
 
@@ -43,12 +47,12 @@
 
           var material = new  THREE.MeshBasicMaterial({ color : new THREE.Color(0xFF0000) });
           var mesh = new THREE.Mesh( geometry, material );
-          mesh.position.x = Math.floor( Math.random() * 20 - 10 ) * 20;
-          mesh.position.y = Math.floor( Math.random() * 20 ) * 20 + 10;
-          mesh.position.z = Math.floor( Math.random() * 20 - 10 ) * 20;
+          mesh.position.x = Math.floor( Math.random() * 40 - 10 ) * 20;
+          mesh.position.y = Math.floor( Math.random() * 40 ) * 20 + 10;
+          mesh.position.z = Math.floor( Math.random() * 40 - 20 ) * 20;
           
 
-          
+          collidables.push(mesh);
           scene.add( mesh );
         }
     }
@@ -77,12 +81,15 @@
       //add to scene
       //scene.add(cube);
       scene.add(plane());
-      initBoxes(100);
+      initBoxes(200);
 
 
-      var material = new THREE.LineBasicMaterial({
-        color: 0xFFFFFF
-    });
+      var material = new THREE.LineBasicMaterial({ color: 0xFFFFFF });
+      var Light = new THREE.PointLight(0xFFFFFF);
+      Light.position = {x:0, y:75, z:0};
+
+      scene.add(Light);
+
       var geometry = new THREE.Geometry();
       geometry.vertices.push(new THREE.Vector3(0, 100, 400));
       geometry.vertices.push(new THREE.Vector3(0, 0, 0));
@@ -93,9 +100,9 @@
 
     function initCamera()
     {
-      camera.position.x = 0;
+      camera.position.x = 50;
       camera.position.y = 150;
-      camera.position.z = 500;
+      camera.position.z = 700;
     }
 
     //-------------------------------------------------------------
@@ -167,6 +174,7 @@
           }
           handObj[hand.id].palm.position = new THREE.Vector3(posX,posZ,posY);
           handObj[hand.id].palmNormal = new THREE.Vector3(hand.palmNormal[0], hand.palmNormal[1], hand.palmNormal[2]);
+          
           handObj[hand.id].updateFingers(frame.hands[handId].fingers);
           //handObj[hand.id].fingers = frame.hands[handId].fingers;
 
@@ -188,26 +196,26 @@
 
     function handleGestures(gesturesArray)
     {
-      
+
       for(gesture in gesturesArray)
       {
-        
+        var hand = handObj[gesturesArray[gesture].handIds[0]];
         var side = handObj[gesturesArray[gesture].handIds[0]].side == 1? true : false;
+        
         switch(gesturesArray[gesture].type)
         {
           case "swipe" : 
 
-            
+            //console.log(gesturesArray[gesture].direction);
             if(gesturesArray[gesture].speed > 600.0)
             {
-            cameraRotationDegrees += (gesturesArray[gesture].position[0] - 
-                                      gesturesArray[gesture].startPosition[0]) / 40.0;
-            rotateCamera(cameraRotationDegrees);
-            d2 = gesturesArray[gesture];
-            //console.log(JSON.stringify(d2));
+            //console.log(hand.swipeDirection);
+            //cameraRotationDegrees += (gesturesArray[gesture].position[0] - gesturesArray[gesture].startPosition[0]) / 40.0;
+            //rotateCamera(cameraRotationDegrees);
             }
-            //console.log("something: did a swipe :: " + cameraRotationDegrees); break;
+            break;
           case "circle" :
+          /*
           if(side)
           {
             
@@ -216,26 +224,46 @@
           else
           {
             console.log("left: did a circle")
-          } break;
+
+          }
+          */
+          d2 = gesturesArray[gesture];
+          if(gesturesArray[gesture].state != "stop")
+          {
+            if(gesturesArray[gesture].normal[2] < 0)
+            {
+
+              cameraRotationDegrees += 0.75;
+              //console.log("clockwise rotation");
+
+            }
+            else
+              cameraRotationDegrees -= 0.75;
+              //console.log("counter clockwise rotation"); 
+          }
+          //console.log(gesturesArray[gesture]);
+          //console.log(cameraRotationDegrees);
+          rotateCamera(cameraRotationDegrees);
+          break;
           case "keyTap" :
           if(side)
           {
-            console.log("right: did a keytap");
+            //console.log("right: did a keytap");
           }
           else
           {
-            console.log("left: did a keytap")
+            //console.log("left: did a keytap")
           } break;
           case "screenTap" :
           if(side)
           {
-            console.log("right: did a screentap");
+            //console.log("right: did a screentap");
           }
           else
           {
-            console.log("left: did a screentap")
+            //console.log("left: did a screentap")
           } break;
-          default : console.log("new gesture" + gesturesArray[gesture].type); 
+          default : //console.log("new gesture" + gesturesArray[gesture].type); 
         }
         break;
       }
@@ -246,7 +274,11 @@
       for(id in handObj)
       {
         //console.log(handObj[id]);
-        handObj[id].updateRay();
+        
+        
+        handObj[id].update(camera);
+        handObj[id].updateRay(camera);
+        handObj[id].checkCollisions(collidables);
         //line.geometry.verticesNeedUpdate = true;
         //console.log(handObj[id].palmNormal);
       }
@@ -294,6 +326,8 @@
       renderer.render(scene, camera);
     });
 
+
+    
     
 
 

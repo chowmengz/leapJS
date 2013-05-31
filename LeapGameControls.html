@@ -28,9 +28,17 @@
 
     //------------------------------------
     var cameraRotationDegrees = 0;
+    var cameraRotationDegreesUp = 0;
+    var cameraRotationDegreesDown = 0;
     var started = false;
     var initialCameraPosition = 0;
     var finalCameraPosition = 0;
+
+    //------------------------------------
+    //flying variables
+    //------------------------------------
+    var isFlying = false;
+    var palmOffset = new THREE.Vector3();
 
     //------------------------------------
 
@@ -65,7 +73,7 @@
       renderer.setSize(window.innerWidth, window.innerHeight);
       document.body.appendChild(renderer.domElement); 
 
-      camera = new THREE.PerspectiveCamera( 70, window.innerWidth / window.innerHeight, 1, 3000 );
+      camera = new THREE.PerspectiveCamera( 40, window.innerWidth / window.innerHeight, 1, 3000 );
       initCamera();
 
       //make cube
@@ -100,17 +108,49 @@
 
     function initCamera()
     {
-      camera.position.x = 50;
+      camera.position.x = 0;
       camera.position.y = 150;
-      camera.position.z = 700;
+      camera.position.z = 500;
     }
 
     //-------------------------------------------------------------
     //CAMERA STUFF
     //-------------------------------------------------------------
-    function rotateCamera(degrees)
+    function rotateCamera(degrees, upDegrees, downDegrees)
     {
       camera.rotation.y = degrees * Math.PI / 180;
+
+      camera.rotation.x = upDegrees * Math.PI / 180;
+
+    }
+
+
+    function moveCamera()
+    {
+      var point = new THREE.Vector3( 0, 0, -1 );
+      camera.matrixWorld.multiplyVector3(point );
+
+      var CameraDifference = new THREE.Vector3();
+      CameraDifference.sub(point, camera.position );
+      var rotation_matrix = new THREE.Matrix4();
+
+      rotation_matrix.makeRotationY(cameraRotationDegrees);
+
+      //rotation_matrix.multiplySelf(new THREE.Matrix4().makeRotationX(cameraRotationDegreesUp));
+
+      //var camQuat = new THREE.Quaternion(0,0,0,0).setFromRotationMatrix(rotation_matrix);
+      if(isFlying)
+      {
+        camera.position.add(camera.position, CameraDifference);
+        //console.log(palmOffset);
+        cameraRotationDegrees += palmOffset.x * Math.PI / 180;
+        cameraRotationDegreesUp -= palmOffset.z * Math.PI / 180;
+        //rotateCamera(cameraRotationDegrees, cameraRotationDegreesUp);
+        camera.rotation.setEulerFromRotationMatrix(rotation_matrix, "XYZ");
+        camera.localToWorld(new THREE.Vector3(1,1,1));
+
+      }
+      //console.log(CameraDifference);
     }
 
     function plane()
@@ -126,6 +166,8 @@
 
     function showHands(frame)
     {
+        isFlying = false;
+
         if (frame.hands === undefined ) { 
           var handsLength = 0 
         } else {
@@ -140,9 +182,9 @@
         for (var handId = 0, handCount = handsLength; handId != handCount; handId++) 
         {
           var hand = frame.hands[handId];
-          var posX = (hand.palmPosition[0]*3);
-          var posY = (hand.palmPosition[2]*3)-200;
-          var posZ = (hand.palmPosition[1]*3)-400;
+          var posX = (hand.palmPosition[0]*1);
+          var posY = (hand.palmPosition[2]*1)-400;
+          var posZ = (hand.palmPosition[1]*1)-200;
           var rotX = (hand.rotation[1][2]*90);
           var rotY = (hand.rotation[1][1]*90);
           var rotZ = (hand.rotation[1][0]*90);
@@ -177,10 +219,16 @@
           
           handObj[hand.id].updateFingers(frame.hands[handId].fingers);
           //handObj[hand.id].fingers = frame.hands[handId].fingers;
-
+          if(handObj[hand.id].side == 0 && handObj[hand.id].flyMode == true)
+          {
+            console.log("we're flying somewhere");
+            isFlying = true;
+            palmOffset = handObj[hand.id].palmNormal;
+          }
           handIds[hand.id] = true;
         }
         
+
         //deleting
         for (handId in handIds) {
           //console.log("handId " + handId);
@@ -233,17 +281,20 @@
             if(gesturesArray[gesture].normal[2] < 0)
             {
 
-              cameraRotationDegrees += 0.75;
+              //cameraRotationDegrees += 0.75;
               //console.log("clockwise rotation");
 
             }
             else
-              cameraRotationDegrees -= 0.75;
+            {
+
+            }
+              //cameraRotationDegrees -= 0.75;
               //console.log("counter clockwise rotation"); 
           }
           //console.log(gesturesArray[gesture]);
           //console.log(cameraRotationDegrees);
-          rotateCamera(cameraRotationDegrees);
+          //rotateCamera(cameraRotationDegrees, cameraRotationDegreesUp);
           break;
           case "keyTap" :
           if(side)
@@ -300,12 +351,13 @@
       }
 
 
-
+      
       if(debug_mode)
       {
         showHands(frame);
       }
       rayCastPalm();
+      moveCamera();
 
       if (frame.valid) {
         debug = frame;

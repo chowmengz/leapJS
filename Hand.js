@@ -4,7 +4,7 @@
 **/
 function Hand(scene)
 {
-	this.palm = new THREE.Mesh(new THREE.CubeGeometry(50,50,50),
+	this.palm = new THREE.Mesh(new THREE.CubeGeometry(30,30,30),
 		new THREE.MeshBasicMaterial({ color : new THREE.Color(0xFFFFFF) }));
 	this.palm.material.color.setRGB(Math.random(), Math.random(), Math.random());
 	this.palmNormal = new THREE.Vector3();
@@ -16,6 +16,9 @@ function Hand(scene)
 	this.rotationProgress = 0.0;
 	this.currentDirection = null;
 	this.rayCaster = new THREE.Raycaster();
+	this.flyMode = false;
+
+	this.selectionCounter = 0;
 }
 
 Hand.prototype.createRay = function()
@@ -36,16 +39,29 @@ Hand.prototype.createRay = function()
 
 Hand.prototype.update = function(camera)
 {
-	var matrix = camera.matrix;
+
+
+	var matrix = new THREE.Matrix4();
+	matrix.identity();
+	matrix.makeRotationY(camera.rotation.y);
+	var matrix2 = new THREE.Matrix4();
+	matrix2.identity();
+	matrix2.makeTranslation(camera.position);
+
+	matrix = camera.matrix;
 	//multiplies palm position by camera rotation matrix
 
 	this.palm.position = matrix.multiplyVector3(this.palm.position);
+	//this.palm.position = matrix.multiplyVector3(this.palm.position);
+	
+
 
 	for(finger in this.fingers)
 	{
-		this.fingers[finger].position = matrix.multiplyVector3(this.fingers[finger].position);
+	this.fingers[finger].position = matrix.multiplyVector3(this.fingers[finger].position);
+	//this.fingers[finger].position = matrix.multiplyVector3(this.fingers[finger].position);
 	}
-
+	
 	//rotate raycaster
 	
 
@@ -84,6 +100,7 @@ Hand.prototype.updateRay = function(camera)
 		//subtracted = camera.matrix.multiplyVector3(subtracted);
 		this.rayCaster.set(this.palm.position, subtracted.normalize());
 
+
 		geo.vertices[0] = this.rayCaster.ray.origin;
 		
 		geo.vertices[1] = this.rayCaster.ray.origin.clone().addSelf(this.rayCaster.ray.direction.clone().multiplyScalar(1000));
@@ -100,7 +117,26 @@ Hand.prototype.checkCollisions = function(collidablesList)
 		for(collidable in collisionResults)
 		{
 			//dg = collisionResults[collidable];
-			collisionResults[collidable].object.material.color.setRGB(0,1,1);
+			var color = collisionResults[collidable].object.material.color;
+			this.selectionCounter++;
+			if(this.selectionCounter == 30)
+			{
+				
+				if(color.r == 1)
+				{
+					color.setRGB(0,1,1);
+				}
+				else
+				{
+					console.log("hello");
+					color.setRGB(1,0,0);
+				}
+
+				this.selectionCounter = 0;
+			}
+			//console.log(this.selectionCounter);
+			//collisionResults[collidable].object.material.color.setRGB(1,0,0);
+
 		}
 		//console.log("collided with a cube somewhere");
 	}
@@ -143,23 +179,33 @@ Hand.prototype.updateFingers = function(fingerArray)
 	var currentLongestMagntitude = -1;
 	this.currentDirection = null;
 	var currentFinger = null;
+	if(fingerArray.length >= 3)
+	{
+		this.flyMode = true;
+	}
+	else
+	{
+		this.flyMode = false;
+	}
 	for(fingerId in fingerArray)
 	{
-		var finger = new THREE.Mesh(new THREE.CubeGeometry(10,20,10),
+		var finger = new THREE.Mesh(new THREE.CubeGeometry(10,10,10),
 			new THREE.MeshBasicMaterial({ color : new THREE.Color(0xFFFFFF) }));
 		finger.material.color.setRGB(Math.random(), Math.random(), Math.random());
+
 		if(this.fingers[fingerId] == undefined)
 		{
 			this.fingers[fingerId] = finger;
 			scene.add(this.fingers[fingerId]);
 		}
 		var pointable = fingerArray[fingerId];
-		var posX = (pointable.tipPosition[0]*3);
-		var posY = (pointable.tipPosition[2]*3)-200;
-		var posZ = (pointable.tipPosition[1]*3)-400;
-		var dirX = -(pointable.direction[1]*90);
-		var dirY = -(pointable.direction[2]*90);
-		var dirZ = (pointable.direction[0]*90);
+		var posX = (pointable.tipPosition[0]*1);
+		var posY = (pointable.tipPosition[2]*1)-400;//-200;
+		var posZ = (pointable.tipPosition[1]*1)-200;//-400;
+		var dirX = (pointable.direction[0]);
+		var dirY = (pointable.direction[1]);
+		var dirZ = (pointable.direction[2]);
+		//console.log(pointable.direction);
 
 		var tempMag = Math.sqrt(Math.pow(this.palm.position.x - posX, 2) + Math.pow(this.palm.position.y - posY, 2) + Math.pow(this.palm.position.z - posZ, 2));
 		if(tempMag > currentLongestMagntitude)
@@ -172,6 +218,7 @@ Hand.prototype.updateFingers = function(fingerArray)
 		//console.log(posX, posY, posZ);
 
 		this.fingers[fingerId].position = new THREE.Vector3(posX, posZ, posY);
+		//this.fingers[fingerId].position = camera.matrix.multiplyVector3(this.fingers[fingerId].position);
 		//console.log("id :: " + fingerId + " :: " + this.fingers[fingerId].position.x + " "  + this.fingers[fingerId].position.y + " " + this.fingers[fingerId].position.z);
 	}
 

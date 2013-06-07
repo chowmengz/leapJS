@@ -33,14 +33,24 @@
     var started = false;
     var initialCameraPosition = 0;
     var finalCameraPosition = 0;
+    var selectedItem = null;
+    var transformationMode = false;
 
     //------------------------------------
     //flying variables
     //------------------------------------
     var isFlying = false;
     var palmOffset = new THREE.Vector3();
+    var initialFlyingPosition;
+    var newFlyingPosition;
+
+    var weight = 0.0;;
 
     //------------------------------------
+
+
+
+
 
     var collidables = [];
 
@@ -49,7 +59,7 @@
 
     function initBoxes(numBoxes)
     {
-        geometry = new THREE.CubeGeometry(20,20,20);
+        geometry = new THREE.CubeGeometry(40,40,40);
 
         for ( var i = 0; i < numBoxes; i ++ ) {
 
@@ -124,10 +134,41 @@
 
     }
 
+    function lerp(start, destination, weight)
+    {
+        var begin = start.clone();
+        var end = destination.clone();
+    
+        begin.multiplyScalar(1.0-weight)
+        end.multiplyScalar(weight);
+        var result = new THREE.Vector3();
+        result.add(begin,end);
+        return result;
+        //return start*(1.0-weight) + destination*(weight);
+
+    }
 
     function moveCamera()
     {
-      var point = new THREE.Vector3( 0, 0, -1 );
+      var point = new THREE.Vector3(0,0,0);
+      if(initialFlyingPosition != null)
+      {
+        var difference = (newFlyingPosition - initialFlyingPosition) * .20 ;
+        var absDif = (newFlyingPosition - initialFlyingPosition) * .20 ;
+        console.log("difference is :: " + difference);
+        if(Math.abs(absDif) >= 5.0)
+        {
+          if(difference < 0)
+          {
+            point = new THREE.Vector3( 0, 0, difference+5 );
+          }
+          else
+          {
+            point = new THREE.Vector3( 0, 0, difference-5 );
+          }
+        }
+        
+      }
       camera.matrixWorld.multiplyVector3(point );
 
       var CameraDifference = new THREE.Vector3();
@@ -148,7 +189,6 @@
         //rotateCamera(cameraRotationDegrees, cameraRotationDegreesUp);
         camera.rotation.setEulerFromRotationMatrix(rotation_matrix, "XYZ");
         camera.localToWorld(new THREE.Vector3(1,1,1));
-
       }
       //console.log(CameraDifference);
     }
@@ -219,12 +259,27 @@
           
           handObj[hand.id].updateFingers(frame.hands[handId].fingers);
           //handObj[hand.id].fingers = frame.hands[handId].fingers;
-          if(handObj[hand.id].side == 0 && handObj[hand.id].flyMode == true)
+          if(handObj[hand.id].side == 1 && handObj[hand.id].flyMode == true)
           {
             console.log("we're flying somewhere");
             isFlying = true;
             palmOffset = handObj[hand.id].palmNormal;
+            if(initialFlyingPosition == null)
+            {
+              initialFlyingPosition = posY;
+              console.log("initial flight position == " + posY);
+            }
+            newFlyingPosition = posY;
           }
+          else
+          {
+            if(handObj[hand.id].side == 1)
+            {
+              initialFlyingPosition = null;
+            }
+          }
+
+
           handIds[hand.id] = true;
         }
         
@@ -238,6 +293,7 @@
             handObj[handId].onRemove();
             //scene.remove(handObj[handId].palm);
             delete handIds[handId];
+            delete handObj[handId];
           }
         }
     }
@@ -320,6 +376,40 @@
       }
     }
 
+
+    function selection()
+    {
+        for(id in handObj)
+        {
+          //left hand
+          var hand = handObj[id];
+          if(hand.side == 0)
+          {
+            if(hand.noFingers && selectedItem != null)
+            {
+              transformationMode = true;
+              if(weight <= 1.0)
+                  weight += 0.01;
+              selectedItem.object.position = lerp(selectedItem.object.position, hand.palm.position, weight)
+              //selectedItem.object.position = hand.palm.position;
+            }
+            else
+            {
+              if(transformationMode == true)
+              {
+                selectedItem.object.material.color.setRGB(1,0,0);
+                selectedItem = null;
+                weight = 0.0;
+              }
+              transformationMode = false;
+
+            }
+          }
+        }
+
+    }
+
+
     function rayCastPalm()
     {
       for(id in handObj)
@@ -330,6 +420,7 @@
         handObj[id].update(camera);
         handObj[id].updateRay(camera);
         handObj[id].checkCollisions(collidables);
+        selection();
         //line.geometry.verticesNeedUpdate = true;
         //console.log(handObj[id].palmNormal);
       }

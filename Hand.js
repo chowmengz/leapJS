@@ -12,17 +12,18 @@ function Hand(scene)
 	this.fingers = {};
 	this.palmRay = null;
 	this.scene = scene;
-	this.createRay();
 	this.rotationProgress = 0.0;
 	this.currentDirection = null;
 	this.rayCaster = new THREE.Raycaster();
 	this.flyMode = false;
-
 	this.selectionCounter = 0;
+	this.noFingers = false;
+
 }
 
 Hand.prototype.createRay = function()
 {
+
 	var palmProjection =  this.palmNormal.clone();
 	  var material = new THREE.LineBasicMaterial({
         color: 0xFFFFFF
@@ -32,7 +33,8 @@ Hand.prototype.createRay = function()
       geometry.vertices.push(new THREE.Vector3(0,0,0));
       this.palmRay = new THREE.Line(geometry, material);
       //this.palmRay.rotation = new THREE.Vector3(45*Math.PI/180,0,0);
-      this.scene.add(this.palmRay);
+      if(this.side == 1)
+      	this.scene.add(this.palmRay);
       
 
 };
@@ -111,15 +113,26 @@ Hand.prototype.updateRay = function(camera)
 
 Hand.prototype.checkCollisions = function(collidablesList)
 {
+	//if left hand dont select
+	if(this.side == 0 || this.flyMode == true || transformationMode == true)
+		return null;
 	var collisionResults = this.rayCaster.intersectObjects( collidablesList );
+	var currentCollision = null;
 	if(collisionResults.length > 0)
 	{
 		for(collidable in collisionResults)
 		{
-			//dg = collisionResults[collidable];
+
+			currentCollision = collisionResults[collidable];
 			var color = collisionResults[collidable].object.material.color;
+			if(selectedItem != null)
+			{
+				selectedItem.object.material.color.setRGB(1,0,0);
+			}
+			color.setRGB(0,1,1);
+			/*
 			this.selectionCounter++;
-			if(this.selectionCounter == 30)
+			if(this.selectionCounter == 50)
 			{
 				
 				if(color.r == 1)
@@ -128,16 +141,19 @@ Hand.prototype.checkCollisions = function(collidablesList)
 				}
 				else
 				{
-					console.log("hello");
 					color.setRGB(1,0,0);
 				}
 
 				this.selectionCounter = 0;
 			}
+			*/
 			//console.log(this.selectionCounter);
 			//collisionResults[collidable].object.material.color.setRGB(1,0,0);
-
+			selectedItem = currentCollision;
+			break;
 		}
+
+
 		//console.log("collided with a cube somewhere");
 	}
 };
@@ -148,12 +164,13 @@ Hand.prototype.setSide = function(side)
 	//set to right side
 	if(side == 1)
 	{
-		this.palm.material.color.setRGB(1, 0, 0);
+		this.palm.material.color.setRGB(0, 0, 1);
 	}
 	if(side == 0)
 	{
 		this.palm.material.color.setRGB(0, 1, 0);
 	}
+	this.createRay();
 };
 /**
 * Things to do when hand is removed from scene
@@ -179,14 +196,23 @@ Hand.prototype.updateFingers = function(fingerArray)
 	var currentLongestMagntitude = -1;
 	this.currentDirection = null;
 	var currentFinger = null;
+
 	if(fingerArray.length >= 3)
 	{
 		this.flyMode = true;
+		this.noFingers = false;
+	}
+	else if(fingerArray.length <= 1)
+	{
+
+		this.noFingers = true;
 	}
 	else
 	{
 		this.flyMode = false;
+		this.noFingers = false;
 	}
+
 	for(fingerId in fingerArray)
 	{
 		var finger = new THREE.Mesh(new THREE.CubeGeometry(10,10,10),
